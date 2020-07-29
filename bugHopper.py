@@ -19,11 +19,11 @@ class bugHopper:
     '''Object that interfaces between bugherd api and google sheets'''
 
     def __init__(self):
-        with open('./api.yaml', 'r') as file:
+        with open('./api.yml', 'r') as file:
             api = yaml.load(file, Loader = yaml.FullLoader)
 
-        self.user_joia = api['api']['user']
-        self.paswd_joia = api['api']['pass']
+        self.user_basic = api['api']['user']
+        self.paswd_basic = api['api']['pass']
         self.url_base = 'https://www.bugherd.com/api_v2/'
         self.url_projects_active = self.url_base + 'projects/active.json'
         self.project_pd = []
@@ -35,19 +35,19 @@ class bugHopper:
 
     @rt.sleep_and_retry
     @rt.limits(calls = 1, period = 2)
-    def call_joai(self, url, params = None):
-        got = requests.get(url, params = params, auth = (self.user_joia, self.paswd_joia)).content
+    def call_basic(self, url, params = None):
+        got = requests.get(url, params = params, auth = (self.user_basic, self.paswd_basic)).content
         return got
 
     def get_total_projects(self):
-        self.total_proj = json.loads(self.call_joai(self.url_projects_active))['meta']['count']
+        self.total_proj = json.loads(self.call_basic(self.url_projects_active))['meta']['count']
         return self.total_proj
 
     def get_project_list(self, end=100):
         dfbig = []
         for i in np.arange(1,np.round(end/100)+1)[::-1]:
             pg = {'page': int(i)}
-            tempJson = self.call_joai(self.url_projects_active, params = pg)
+            tempJson = self.call_basic(self.url_projects_active, params = pg)
             dfbig.append(pd.json_normalize(json.loads(tempJson)['projects']))
             self.project_pd = pd.concat(dfbig)
         dfbig = None
@@ -60,7 +60,7 @@ class bugHopper:
         for index,row in self.project_pd.iterrows():
             url_tasks = self.url_base + 'projects/' + str(row['id']) + "/tasks/feedback.json"
             try:
-                tempJson = self.call_joai(url_tasks)
+                tempJson = self.call_basic(url_tasks)
                 task_df = pd.json_normalize(json.loads(tempJson)['tasks'])
             except KeyError:
                 print(json.loads(tempJson))
@@ -95,16 +95,13 @@ class bugHopper:
             '''
                start and end are pandas timestamp objects
             '''
+            n_hours = (end-start).days*24+(end-start).seconds/3600.0
             b_days = len(pd.bdate_range(start, end))
-            if (b_days < 2.):
-               #more than a buisness day, so return number of days
-               n_hours = (end-start).seconds/3600.0
-               if n_hours > 24:
-                   b_days = 1
-                   return '{} days'.format(round(b_days))
-               else:
-                    return '{} hours'.format(round(n_hours))
-            return '{} days'.format(round(b_days))
+            if (n_hours > 24.):
+                #more than a buisness day, so return number of days
+                return '{} days'.format(round(b_days))
+            else:
+                return '{} hours'.format(round(n_hours))
 
         self.task_process['Last updated'] = self.task_process.apply(lambda x: hours_elap(x['created_at'], x['Time']), axis = 1)
         self.task_process.sort_values('created_at', inplace=True) 
