@@ -45,7 +45,7 @@ class bugHopper:
 
     def get_project_list(self, end=100):
         dfbig = []
-        for i in np.arange(1,np.round(end/100)+1)[::-1]:
+        for i in np.arange(1,end//100+2)[::-1]:
             pg = {'page': int(i)}
             tempJson = self.call_basic(self.url_projects_active, params = pg)
             dfbig.append(pd.json_normalize(json.loads(tempJson)['projects']))
@@ -68,7 +68,7 @@ class bugHopper:
                 task_df['name'] = row['name']
                 task.append(task_df)
                 count += 1
-            print('{}% done, index:{}, total:{}'.format(count/len(self.project_pd), count, len(self.project_pd)))
+            print('{}% done, index: {}, count: {}, total: {}'.format(count/len(self.project_pd), count, index, len(self.project_pd)))
 
         df = pd.concat(task)
         df['created_at'] = pd.to_datetime(df['created_at'], utc=False)
@@ -153,14 +153,14 @@ class bugHopper:
         self.task_pd = pd.read_pickle('bugRaw.pkl')
 if __name__ == '__main__':
     l = bugHopper()
-    #l.get()
-    #l.write_raw()
-    l.read_raw()
+    l.get()
+    l.write_raw()
+    #l.read_raw()
     l.process_task_list()
     l.get_spreadsheet()
     l.combine()
     l.put()
     l.write_local()
-    l.read_local
+    #l.read_local
 
 
